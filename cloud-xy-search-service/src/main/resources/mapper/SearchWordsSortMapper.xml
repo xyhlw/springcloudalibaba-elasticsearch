@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.xy.cloud.search.dao.SearchWordsSortDao">
+    <resultMap id="BaseMap" type="com.xy.cloud.search.vo.SearchWordsSortVo">
+        <id property="id" column="id" jdbcType="INTEGER"></id>
+        <result property="searchWordsName" column="search_words_name" jdbcType="VARCHAR"/>
+        <result property="userId" column="user_id" jdbcType="VARCHAR"/>
+        <result property="searchCount" column="search_count" jdbcType="INTEGER"/>
+        <result property="dirId" column="dir_id" jdbcType="VARCHAR"/>
+        <result property="createDate" column="create_date" jdbcType="TIMESTAMP"/>
+        <result property="updateDate" column="update_date" jdbcType="TIMESTAMP"/>
+        <result property="languageType" column="language_type" jdbcType="VARCHAR"/>
+        <result property="usageScenariosType" column="usage_scenarios_type" jdbcType="VARCHAR"/>
+        <result property="manualType" column="manual_type" jdbcType="VARCHAR"/>
+    </resultMap>
+
+    <select id="searchWordsSortFlag" parameterType="com.xy.cloud.search.vo.SearchWordsSortVo" resultType="java.lang.Integer">
+        SELECT COUNT(1) FROM fiberhome_search_words_sort
+        <where>
+            <trim>
+                <if test="userId != null and userId !=''">
+                    and user_id=#{userId}
+                </if>
+                <if test="searchWordsName != null and searchWordsName !=''">
+                    and search_words_name=#{searchWordsName}
+                </if>
+                <if test="languageType != null and languageType !=''">
+                    and language_type=#{languageType}
+                </if>
+            </trim>
+        </where>
+    </select>
+
+    <select id="searchWordsSortCorrelationList" parameterType="com.xy.cloud.search.vo.SearchWordsSortVo" resultMap="BaseMap">
+        SELECT  `search_words_name`,`user_id`,`dir_id`,`language_type`,`usage_scenarios_type`,`manual_type` FROM fiberhome_search_words_sort
+        WHERE `user_id` =  #{userId}
+        AND `language_type`= #{languageType}
+        AND `dir_id` IS NOT NULL AND `usage_scenarios_type` IS NOT NULL AND `manual_type` IS NOT NULL
+        ORDER BY `search_count` DESC
+        LIMIT 0,3
+</select>
+    <select id="list"   resultMap="BaseMap">
+        SELECT `id`,`search_words_name`,`user_id`,dir_id,`search_count`,`create_date`,`update_date`,language_type,`usage_scenarios_type`,`manual_type`
+        FROM fiberhome_search_words_sort
+        <where>
+            1=1
+            <if test="id != null and id != ''">
+                and id = #{id}
+            </if>
+            <if test="searchWordsName != null and searchWordsName != ''">
+                and search_words_name = #{searchWordsName}
+            </if>
+            <if test="userId != null and userId != ''">
+                and user_id = #{userId}
+            </if>
+            <if test="languageType != null and languageType != ''">
+                and language_type = #{languageType}
+            </if>
+
+        </where>
+        ORDER BY `search_count` DESC
+        LIMIT 0,10
+    </select>
+
+    <insert id="save">
+        insert into fiberhome_search_words_sort
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="id != null and id !=''">
+                id,
+            </if>
+            <if test="searchWordsName != null and searchWordsName !=''">
+                search_words_name,
+            </if>
+            <if test="userId != null and userId !=''">
+                user_id,
+            </if>
+            <if test="searchCount != null and searchCount !=''">
+                search_count,
+            </if>
+            <if test="dirId != null and dirId !=''">
+                dir_id,
+            </if>
+            <if test="createDate != null">
+                create_date,
+            </if>
+            <if test="updateDate != null">
+                update_date,
+            </if>
+            <if test="languageType != null">
+                language_type,
+            </if>
+            <if test="usageScenariosType != null">
+                usage_scenarios_type,
+            </if>
+            <if test="manualType != null">
+                manual_type,
+            </if>
+
+
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="id != null and id !=''">
+                #{id} ,
+            </if>
+            <if test="searchWordsName != null and searchWordsName !=''">
+                #{searchWordsName} ,
+            </if>
+            <if test="userId != null and userId !=''">
+                #{userId} ,
+            </if>
+            <if test="dirId != null and dirId !=''">
+                #{dirId} ,
+            </if>
+            <if test="searchCount != null and searchCount !=''">
+                #{searchCount} ,
+            </if>
+            <if test="createDate != null">
+                #{createDate} ,
+            </if>
+            <if test="updateDate != null">
+                #{updateDate} ,
+            </if>
+            <if test="languageType != null">
+                #{languageType} ,
+            </if>
+            <if test="usageScenariosType != null">
+                #{usageScenariosType} ,
+            </if>
+            <if test="manualType != null">
+                #{manualType} ,
+            </if>
+
+        </trim>
+    </insert>
+
+    <update id="updateBySearchCount">
+        UPDATE `fiberhome_search_words_sort`
+        <set>
+            `search_count`=`search_count` + 1 ,
+            <if test="dirId != null">
+                `dir_id` = #{dirId},
+            </if>
+            <if test="updateDate != null">
+                `update_date` = #{updateDate},
+            </if>
+            <if test="usageScenariosType != null">
+                usage_scenarios_type= #{usageScenariosType} ,
+            </if>
+            <if test="manualType != null">
+                manual_type= #{manualType}
+            </if>
+        </set>
+
+        <where>
+            <trim>
+                <if test="userId != null and userId !=''">
+                    and user_id=#{userId}
+                </if>
+                <if test="searchWordsName != null and searchWordsName !=''">
+                    and search_words_name=#{searchWordsName}
+                </if>
+                <if test="languageType != null and languageType !=''">
+                    and language_type=#{languageType}
+                </if>
+                <if test="usageScenariosType != null and usageScenariosType !=''">
+                    and usage_scenarios_type=#{usageScenariosType}
+                </if>
+                <if test="manualType != null and manualType !=''">
+                    and manual_type=#{manualType}
+                </if>
+            </trim>
+        </where>
+    </update>
+
+</mapper>

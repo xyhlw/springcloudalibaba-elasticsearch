@@ -1,0 +1,18 @@
+
+spring:
+  application:
+    name: cloud-xy-search
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 10.132.216.21:8848,10.132.216.22:8848,10.132.216.23:8848
+      config:
+        server-addr: 10.132.216.21:8848,10.132.216.22:8848,10.132.216.23:8848
+        file-extension: yaml
+        extensionConfigs:
+#          - data-id: gwm-common-dev.yaml
+#            refresh: true
+          - data-id: fiberhome-manual-user-server-dev.yaml
+            refresh: true
+  main:
+    allow-bean-definition-overriding: true

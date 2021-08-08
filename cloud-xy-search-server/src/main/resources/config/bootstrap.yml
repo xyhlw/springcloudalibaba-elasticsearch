@@ -1,0 +1,5 @@
+spring:
+  application:
+    name: cloud-xy-search
+  profiles:
+    active: @profiles.active@

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.xy.cloud.search.dao.SearchProfessionalWordsDao">
+    <resultMap id="BaseMap" type="com.xy.cloud.search.vo.SearchProfessionalWordsVo">
+        <id property="id" column="id" jdbcType="INTEGER"></id>
+        <result property="professionalWordsName" column="professional_words_name" jdbcType="VARCHAR"/>
+    </resultMap>
+
+    <select id="searchProfessionalWordsFlag" parameterType="java.lang.String" resultType="java.lang.Integer">
+        SELECT COUNT(1) FROM fiberhome_search_professional_words
+        <where>
+            <trim>
+                <if test="professionalWordsName != null and professionalWordsName !=''">
+                    and professional_words_name=#{professionalWordsName}
+                </if>
+            </trim>
+        </where>
+    </select>
+
+    <select id="list"  resultMap="BaseMap" >
+        SELECT `professional_words_name` FROM `fiberhome_search_professional_words`
+    </select>
+
+</mapper>

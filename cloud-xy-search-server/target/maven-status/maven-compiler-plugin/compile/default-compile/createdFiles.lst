@@ -1,0 +1,6 @@
+com\xy\cloud\search\config\ApplicationContextRegister.class
+com\xy\cloud\search\config\SearchSwaggerConfig.class
+com\xy\cloud\search\SearchApplication.class
+com\xy\cloud\search\config\ApplicationContextProvider.class
+com\xy\cloud\search\controller\EsQueryController.class
+com\xy\cloud\search\controller\EsFeginController.class

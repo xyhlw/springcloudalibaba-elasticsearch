@@ -1,0 +1,52 @@
+spring:
+  application:
+    ###服务的名称
+    name: cloud-xy-search
+  cloud:
+    nacos:
+      discovery:
+#        locator:
+#          ####开启以服务id去注册中心上获取转发地址
+#          enabled: true
+        ###nacos注册地址
+        server-addr: 127.0.0.1:8848
+        namespace: 610a00ec-73c4-406b-b54c-7cc1c6872bef
+      config:
+        server-addr: 127.0.0.1:8848
+        file-extension: yaml
+        namespace: 610a00ec-73c4-406b-b54c-7cc1c6872bef
+        extensionConfigs:
+      #    - data-id: fiberhome-manual-commons.yaml
+       #     refresh: true
+          - data-id: cloud-xy-search-local.yaml
+            refresh: true
+#    gateway:
+#      routes:
+#        - id: manual-search
+#          uri: lb://fiberhome-manual-search
+#          predicates:
+#          - Path=/api-s/**
+#          filters:
+#          - StripPrefix=1
+
+
+#
+#
+#spring:
+#  application:
+#    name: fiberhome-manual-search
+#  cloud:
+#    nacos:
+#      discovery:
+#        server-addr: 127.0.0.1:8848
+#        namespace: 610a00ec-73c4-406b-b54c-7cc1c6872bef
+#
+#      config:
+#        server-addr: 127.0.0.1:8848
+#        file-extension: yaml
+#        namespace: 610a00ec-73c4-406b-b54c-7cc1c6872bef
+#        extensionConfigs:
+#          - data-id: fiberhome-manual-commons.yaml
+#            refresh: true
+#          - data-id: fiberhome-manual-search-local.yaml
+#            refresh: true
