@@ -13,6 +13,8 @@ import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.index.query.functionscore.FunctionScoreQueryBuilder;
+import org.elasticsearch.index.query.functionscore.ScoreFunctionBuilders;
 import org.elasticsearch.search.aggregations.AggregationBuilders;
 import org.elasticsearch.search.aggregations.bucket.terms.Terms;
 import org.elasticsearch.search.aggregations.bucket.terms.TermsAggregationBuilder;
@@ -23,6 +25,7 @@ import org.springframework.data.elasticsearch.core.SearchResultMapper;
 import org.springframework.data.elasticsearch.core.aggregation.AggregatedPage;
 import org.springframework.data.elasticsearch.core.query.NativeSearchQuery;
 import org.springframework.data.elasticsearch.core.query.NativeSearchQueryBuilder;
+import org.springframework.data.elasticsearch.core.query.SearchQuery;
 import org.springframework.data.querydsl.QPageRequest;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -34,10 +37,11 @@ import java.util.stream.Collectors;
 import static com.xy.cloud.search.constants.Constants.*;
 import static com.xy.cloud.search.constants.Constants.ES_CLOER_HGITH_START;
 import static com.xy.cloud.search.constants.Constants.ES_CLOER_HGITH_STOP;
+import static org.elasticsearch.index.query.QueryBuilders.boolQuery;
+import static org.elasticsearch.index.query.QueryBuilders.queryStringQuery;
 
 @Component
 public class ElasticsearchUtil {
-
     /**
      *
      * @param template   es 查询模板
@@ -47,44 +51,17 @@ public class ElasticsearchUtil {
      * @param type 中英文分类区分
      * @return Map 封装返回结果
      */
-    public static  Map<String,Object> resultData(ElasticsearchTemplate template,SearchResultMapper searchResultMapper, DirectoryDto directoryDto,QueryBuilder boolQueryBuilder,String type){
-        Pageable pageable = new QPageRequest(directoryDto.getPageNum()-1, directoryDto.getPageSize());
-        //创建查询构造器
-        NativeSearchQueryBuilder queryBuilder = new NativeSearchQueryBuilder();
-        //查询关键字directoryDto
-        queryBuilder.withQuery(boolQueryBuilder);
-        //分页查询
-        queryBuilder.withPageable(pageable);
-        // 构建高亮查询
-        HighlightBuilder highlightBuilder = new HighlightBuilder();
-        //多次段高亮需要设置为false
-        highlightBuilder.requireFieldMatch(false);
-        highlightBuilder.field(ES_ENTITY_TITLE).field(ES_ENTITY_CONENT).field(ES_ENTITY_URL).field(ES_ENTITY_HREF)
-                .preTags(ES_CLOER_HGITH_START).postTags(ES_CLOER_HGITH_STOP);
-
-        //聚合分组查询数据
-        TermsAggregationBuilder termsSourceTypeParentIdGroup = AggregationBuilders.terms("pList")
-                .field("parentId").size(1000000);
-        TermsAggregationBuilder termsSourceTypeMtGroup = AggregationBuilders.terms("mList")
-                .field("manual_type").size(1000000);
-        TermsAggregationBuilder termsSourceTypeUSGroup = AggregationBuilders.terms("uList")
-                .field("usage_scenarios_type").size(1000000);
-
-        queryBuilder.addAggregation(termsSourceTypeParentIdGroup);
-        queryBuilder.addAggregation(termsSourceTypeMtGroup);
-        queryBuilder.addAggregation(termsSourceTypeUSGroup);
-
-        queryBuilder.withHighlightBuilder(highlightBuilder);
-        NativeSearchQuery build = queryBuilder.build();
+    public static  Map<String,Object> resultData(ElasticsearchTemplate template, SearchResultMapper searchResultMapper,
+                                                 DirectoryDto directoryDto, SearchQuery searchQuery, String type){
         AggregatedPage<?> resultPage = null;
         List<?> content = null;
         if( Constants.MANUAL_ES_CHN.equals(type)){
             // 获取查询结果
-            resultPage = template.queryForPage(build, ManualChnDirEntity.class, searchResultMapper);
+            resultPage = template.queryForPage(searchQuery, ManualChnDirEntity.class, searchResultMapper);
             // 获取集合数据
             content = resultPage.getContent();
         }else{
-            resultPage = template.queryForPage(build, ManualEngDirEntity.class, searchResultMapper);
+            resultPage = template.queryForPage(searchQuery, ManualEngDirEntity.class, searchResultMapper);
             // 获取集合数据
             content = resultPage.getContent();
         }
@@ -105,49 +82,171 @@ public class ElasticsearchUtil {
      * @param query
      * @return
      */
-    public static BoolQueryBuilder buildfFlterParam(List<SearchWordsSortVo> list,DirectoryQueryEsVo query){
+    public static BoolQueryBuilder buildfFlterParam(List<SearchWordsSortVo> list,DirectoryDto query,DirectoryDto aggregation){
         // 1.拼接查询条件
-        BoolQueryBuilder builder = QueryBuilders.boolQuery();
+        BoolQueryBuilder builder = boolQuery();
         // 2.模糊查询 name、 subtitle、detail含有 搜索关键字
-        builder.must(QueryBuilders.multiMatchQuery(query.getName(), ES_ENTITY_URL, ES_ENTITY_CONENT, ES_ENTITY_TITLE));
+        builder.must(QueryBuilders.multiMatchQuery(query.getName(), ES_VERSION, ES_ENTITY_CONENT, ES_ENTITY_TITLE));
+        SetList<String> pList = new SetList<>();
+        SetList<String> mList = new SetList<>();
+        SetList<String> uList = new SetList<>();
 
-        if (!StringUtils.isEmpty(query.getUsageScenariosType())) {
-            String [] usageScenariosType = query.getUsageScenariosType().split(",");
-            if (!list.isEmpty()) {
-                List<String> uList = list.stream().map(s -> s.getManualType()).collect(Collectors.toList());
-                for (String usageType : usageScenariosType) {
-                    uList.add(usageType);
-                }
-                builder.should(QueryBuilders.matchQuery(ES_USAGESCENARIOSTYPE, uList));
-            } else {
-                builder.should(QueryBuilders.matchQuery(ES_USAGESCENARIOSTYPE, usageScenariosType));
+        if(!list.isEmpty()&& query.getpList()==null&& query.getuList()==null&& query.getmList()==null){
+            for(SearchWordsSortVo searchWordsSortVo:list){
+                pList.add(searchWordsSortVo.getDirId());
+                uList.add(searchWordsSortVo.getUsageScenariosType());
+                mList.add(searchWordsSortVo.getManualType());
             }
+            for(String uType:aggregation.getuList()){
+                uList.add(uType);
+            }
+            for (String mType:aggregation.getmList()){
+                mList.add(mType);
+            }
+            for (String parentId:aggregation.getpList()){
+                pList.add(parentId);
+            }
+            builder.filter(QueryBuilders.termsQuery(ES_USAGESCENARIOSTYPE, uList));
+            builder.filter(QueryBuilders.termsQuery(ES_MANUALTYPE, mList));
+            builder.filter(QueryBuilders.termsQuery(ES_PARENTID, pList));
+            return  builder;
         }
-        if (!StringUtils.isEmpty(query.getParentId())) {
-            String [] arrayPrentId = query.getParentId().split(",");
-            if (!list.isEmpty()) {
-                List<String> pList = list.stream().map(s -> s.getManualType()).collect(Collectors.toList());
-                for (String parentId : arrayPrentId) {
-                    pList.add(parentId);
-                }
-                builder.should(QueryBuilders.matchQuery(ES_PARENTID, pList));
-            } else {
-                builder.should(QueryBuilders.matchQuery(ES_PARENTID, arrayPrentId));
 
+        if(!list.isEmpty()){
+            for(SearchWordsSortVo searchWordsSortVo:list){
+                pList.add(searchWordsSortVo.getDirId());
+                uList.add(searchWordsSortVo.getUsageScenariosType());
+                mList.add(searchWordsSortVo.getManualType());
             }
         }
-        if (!StringUtils.isEmpty(query.getManualType())) {
-            String[] arrayUsageScenariosType = query.getManualType().split(",");
-            if (!list.isEmpty()) {
-                List<String> mList = list.stream().map(s -> s.getManualType()).collect(Collectors.toList());
-                for (String scenariosType : arrayUsageScenariosType) {
-                    mList.add(scenariosType);
-                }
-                builder.should(QueryBuilders.matchQuery(ES_MANUALTYPE, mList));
-            } else {
-                builder.should(QueryBuilders.matchQuery(ES_MANUALTYPE, arrayUsageScenariosType));
+        if(query.getpList()!=null && query.getpList().size()>0){
+            for(String pId : query.getpList()){
+                pList.add(pId);
+            }
+            builder.filter(QueryBuilders.termsQuery(ES_PARENTID, pList));
+
+        }else {
+            if(query.getpList()!=null){
+                builder.filter(QueryBuilders.termsQuery(ES_PARENTID, pList));
             }
         }
+
+        if(query.getmList()!=null && query.getmList().size()>0){
+            for(String mType : query.getmList()){
+                mList.add(mType);
+            }
+            builder.filter(QueryBuilders.termsQuery(ES_MANUALTYPE, mList));
+
+        }else {
+            if(query.getmList()!=null){
+                builder.filter(QueryBuilders.termsQuery(ES_MANUALTYPE, mList));
+            }
+        }
+
+        if(query.getuList()!=null && query.getuList().size()>0){
+            for(String uType : query.getuList()){
+                uList.add(uType);
+            }
+            builder.filter(QueryBuilders.termsQuery(ES_USAGESCENARIOSTYPE, uList));
+
+        }else {
+            if(query.getuList()!=null){
+                builder.filter(QueryBuilders.termsQuery(ES_USAGESCENARIOSTYPE, uList));
+            }
+        }
+
         return builder;
     }
+
+    /**
+     * 聚合结果
+     * @return
+     */
+    public static SearchQuery getSearchQuery(List<SearchWordsSortVo> list,DirectoryDto query,DirectoryDto aggregation ){
+        //设置分页
+        Pageable pageable = new QPageRequest(query.getPageNum(),query.getPageSize());
+        //构建筛选
+        BoolQueryBuilder boolQuery = buildfFlterParam( list,query,aggregation);
+        NativeSearchQueryBuilder queryBuilder = new NativeSearchQueryBuilder();
+        FunctionScoreQueryBuilder functionScoreQueryBuilder = null;
+        if(!list.isEmpty()){
+            BoolQueryBuilder boolQueryBuilderFilter = new BoolQueryBuilder();
+            //设置权重重新打分
+            FunctionScoreQueryBuilder.FilterFunctionBuilder[] filterFunctionBuilders = new FunctionScoreQueryBuilder.FilterFunctionBuilder[list.size()];
+            for(int i =0;i<list.size();i++){
+                int number = i + 1 ;
+                int wegitht = (30-number)/number;
+                int functionWegith = (10000-number)/number;
+                boolQueryBuilderFilter.should(boolQuery().must(queryStringQuery("*"+list.get(i).getDirId()+"*").defaultField(ES_PARENTID).boost(wegitht)));
+                boolQueryBuilderFilter.should(boolQuery().must(queryStringQuery("*"+list.get(i).getManualType()+"*").defaultField(ES_MANUALTYPE).boost(wegitht)));
+                boolQueryBuilderFilter.should(boolQuery().must(queryStringQuery("*"+list.get(i).getUsageScenariosType()+"*").defaultField(ES_USAGESCENARIOSTYPE).boost(wegitht)));
+                filterFunctionBuilders[i]=  new FunctionScoreQueryBuilder.FilterFunctionBuilder(boolQueryBuilderFilter, ScoreFunctionBuilders.weightFactorFunction(functionWegith));
+            }
+            functionScoreQueryBuilder = QueryBuilders.functionScoreQuery(boolQuery, filterFunctionBuilders);
+            queryBuilder.withQuery(functionScoreQueryBuilder);
+        }else {
+            queryBuilder.withQuery(boolQuery);
+        }
+        //聚合分组查询数据
+        TermsAggregationBuilder termsSourceTypeParentIdGroup = AggregationBuilders.terms("pList")
+                .field("parentId").size(1000000);
+        TermsAggregationBuilder termsSourceTypeMtGroup = AggregationBuilders.terms("mList")
+                .field("manual_type").size(1000000);
+        TermsAggregationBuilder termsSourceTypeUSGroup = AggregationBuilders.terms("uList")
+                .field("usage_scenarios_type").size(1000000);
+        HighlightBuilder highlightBuilder = new HighlightBuilder();
+        highlightBuilder.requireFieldMatch(false);
+        highlightBuilder.field(ES_VERSION).field(ES_ENTITY_CONENT).field(ES_ENTITY_TITLE).preTags("<span style='color:red'>").postTags("</span>");
+        queryBuilder.withHighlightBuilder(highlightBuilder);
+        queryBuilder.addAggregation(termsSourceTypeParentIdGroup);
+        queryBuilder.addAggregation(termsSourceTypeMtGroup);
+        queryBuilder.addAggregation(termsSourceTypeUSGroup);
+        queryBuilder.withPageable(pageable);
+        return  queryBuilder.build();
+    }
+
+    /**
+     * 聚合结果
+     * @return
+     */
+    public static DirectoryDto getAggregation(ElasticsearchTemplate template, SearchResultMapper searchResultMapper,
+                                              DirectoryDto directoryDto, String type){
+
+        NativeSearchQueryBuilder queryBuilder = new NativeSearchQueryBuilder();
+        // 1.拼接查询条件
+        BoolQueryBuilder builder = boolQuery();
+        // 2.模糊查询 name、 subtitle、detail含有 搜索关键字
+        builder.must(QueryBuilders.multiMatchQuery(directoryDto.getName(), ES_VERSION, ES_ENTITY_CONENT, ES_ENTITY_TITLE));
+        //聚合分组查询数据
+        TermsAggregationBuilder termsSourceTypeParentIdGroup = AggregationBuilders.terms("pList")
+                .field("parentId").size(1000000);
+        TermsAggregationBuilder termsSourceTypeMtGroup = AggregationBuilders.terms("mList")
+                .field("manual_type").size(1000000);
+        TermsAggregationBuilder termsSourceTypeUSGroup = AggregationBuilders.terms("uList")
+                .field("usage_scenarios_type").size(1000000);
+        queryBuilder.addAggregation(termsSourceTypeParentIdGroup);
+        queryBuilder.addAggregation(termsSourceTypeMtGroup);
+        queryBuilder.addAggregation(termsSourceTypeUSGroup);
+        queryBuilder.withQuery(builder);
+        NativeSearchQuery build = queryBuilder.build();
+        AggregatedPage<?> resultPage = null;
+        List<?> content = null;
+        if( Constants.MANUAL_ES_CHN.equals(type)){
+            // 获取查询结果
+            resultPage = template.queryForPage(build, ManualChnDirEntity.class, searchResultMapper);
+            // 获取集合数据
+            content = resultPage.getContent();
+        }else{
+            resultPage = template.queryForPage(build, ManualEngDirEntity.class, searchResultMapper);
+            // 获取集合数据
+            content = resultPage.getContent();
+        }
+        MapperFactory mapperFactory = new DefaultMapperFactory.Builder().build();
+        List<DirectoryDto> directoryDtoList = mapperFactory.getMapperFacade().mapAsList(content, DirectoryDto.class);
+        if(!directoryDtoList.isEmpty()){
+            return  directoryDtoList.get(directoryDtoList.size()-1);
+        }
+        return  null;
+    }
+
 }

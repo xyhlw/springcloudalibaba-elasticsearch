@@ -56,6 +56,8 @@ public interface Constants {
 
 	String ES_ENTITY_CONENT = "conent";
 
+	String ES_VERSION= "version";
+
 	String ES_ENTITY_URL = "urlAddress";
 
 	String ES_ENTITY_HREF = "hrefAddress";

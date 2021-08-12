@@ -46,7 +46,7 @@ public class EsQueryController {
     @ApiOperation(value="查询信息",notes="查询信息")
     public Result queryName(@RequestBody DirectoryDto directoryDto, @RequestHeader String type, HttpServletRequest request) {
         DirectoryService directoryAbstrtService = (DirectoryService) ApplicationContextProvider.getBean(type);
-        return   directoryAbstrtService.search(directoryDto,"1");
+        return   directoryAbstrtService.search(directoryDto,type);
     }
 
 

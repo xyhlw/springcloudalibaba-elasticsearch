@@ -27,6 +27,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Primary;
 import org.springframework.data.elasticsearch.core.ElasticsearchTemplate;
 import org.springframework.data.elasticsearch.core.SearchResultMapper;
+import org.springframework.data.elasticsearch.core.query.SearchQuery;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -70,13 +71,14 @@ public class ManualChnServiceImpl implements DirectoryService {
         BeanUtils.copyProperties(directoryDto,esVo);
         SearchWordsSortVo searchWordsSortVo = new SearchWordsSortVo();
         searchWordsSortVo.setLanguageType(Constants.MANUAL_ES_CHN);
-        searchWordsSortVo.setUserId("124");
+        searchWordsSortVo.setUserId("");
         //相关性算法查询
         List<SearchWordsSortVo> correlationList = searchWordsSortDao.searchWordsSortCorrelationList(searchWordsSortVo);
         //构建查询参数
-        BoolQueryBuilder boolQueryBuilder = ElasticsearchUtil.buildfFlterParam(correlationList,esVo);
+        DirectoryDto  aggregationDto = ElasticsearchUtil.getAggregation(template, searchResultMapper,directoryDto,Constants.MANUAL_ES_CHN);
+        SearchQuery searchQuery =   ElasticsearchUtil. getSearchQuery(correlationList,directoryDto,aggregationDto);
         //封装结果参数
-        Map<String, Object> resultMap = ElasticsearchUtil.resultData( template, searchResultMapper,directoryDto, boolQueryBuilder,Constants.MANUAL_ES_CHN);
+        Map<String, Object> resultMap = ElasticsearchUtil.resultData( template, searchResultMapper,directoryDto, searchQuery,Constants.MANUAL_ES_CHN);
         return Result.ok(resultMap);
     }
 
